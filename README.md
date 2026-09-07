@@ -40,6 +40,7 @@ soffice --version                      # should print a version; used for DOCX -
 ```bash
 python3 spike/make_sample_cv.py                             # makes a test CV
 python3 spike/docx_roundtrip.py spike/out/sample_cv.docx    # edits it, checks the damage
+python3 spike/docx_roundtrip.py spike/out/sample_cv.docx --segments   # bullet with a bold lead-in
 ```
 
 Try it on a real CV too — that is the test that counts:

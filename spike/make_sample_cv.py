@@ -50,6 +50,13 @@ def main():
     ]:
         d.add_paragraph(b, style="List Bullet")
 
+    # A bullet with a bold lead-in, then regular text — the common CV pattern and
+    # the case plain text replacement flattens. The spike's --segments path exists
+    # to round-trip this without losing the bold.
+    lead = d.add_paragraph(style="List Bullet")
+    lead.add_run("Rewrote").bold = True
+    lead.add_run(" the intro lab sheet, which the course kept the following year.")
+
     d.add_heading("Skills", level=1)
     t = d.add_table(rows=2, cols=2)
     t.style = "Table Grid"

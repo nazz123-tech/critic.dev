@@ -9,6 +9,7 @@ looking like the user's own? This decides whether "edit in place, layout preserv
 ```bash
 python3 spike/make_sample_cv.py                        # writes a test CV
 python3 spike/docx_roundtrip.py spike/out/sample_cv.docx
+python3 spike/docx_roundtrip.py spike/out/sample_cv.docx --segments   # bold lead-in bullet
 python3 spike/docx_roundtrip.py ~/path/to/real_cv.docx --match "first few words of a bullet"
 ```
 
@@ -18,13 +19,22 @@ Needs `python-docx`; PDF rendering uses `soffice` (LibreOffice), skip it with `-
 
 Every check passed. Style, list numbering, indent and spacing survived; the bullet
 grew from 51 to 205 characters, wrapped onto three lines with the hanging indent
-intact, and the CV stayed on one page.
+intact, and the CV stayed on one page. With `--segments`, a bullet whose lead-in word
+is bold keeps that word bold and nothing else — the plain path turns the whole line
+regular and says so.
 
 ## The technique
 
-Keep the paragraph's first run, write the new text into it, delete the remaining runs.
-The paragraph keeps its style, numbering and indentation because those live on the
-paragraph, not the run.
+Two paths, depending on the bullet:
+
+- **Plain (default).** Keep the paragraph's dominant run — the one holding most of the
+  text — write the new text into it, delete the rest. The paragraph keeps its style,
+  numbering and indentation because those live on the paragraph, not the run. Right when
+  the bullet is one run; it flattens formatting when the bullet is not.
+- **Segments (`--segments`).** The replacement arrives as `[{text, bold, italic}, …]` and
+  is spliced back run by run, each run cloning the dominant run's font first. A bold
+  lead-in stays bold, the body stays regular. This is the shape the rewriter should
+  return whenever the plain path would WARN.
 
 ## What this does NOT prove
 
@@ -32,10 +42,10 @@ paragraph, not the run.
    document. CVs made from Word templates often place content in text boxes, layout
    tables or columns — that is where round-tripping actually breaks. Re-run this against
    two or three CVs downloaded from real template sites before trusting the result.
-2. **Mixed formatting inside one bullet.** A bullet like "**Led** the migration to…"
-   has several runs with different formatting; this technique keeps only the first run's
-   style. The script prints a WARN when it sees that. Handling it properly means splicing
-   at run level instead of replacing the paragraph.
+2. **Mixed formatting mid-sentence.** `--segments` handles the common case (a bold
+   lead-in, then regular text). A bullet with formatting changing several times inside
+   the body still normalizes to the segment boundaries the rewriter chooses — fine for a
+   rewrite, but not a general-purpose run splice.
 3. **Layout, in general.** The checks are structural. Open both PDFs.
 
 ## Product requirement this surfaced
