@@ -50,10 +50,11 @@ tuning is a later step, not this one.
 
 ## How it works
 
-1. `extract.py` — walk the DOCX, emit one `Unit` per line/bullet, each tagged
-   with its section and the role it sits under, each given a stable id. Only
-   paragraph text; **table content is not read yet** (a real gap — many CVs put
-   everything in an invisible table).
+1. `extract.py` — walk the DOCX in reading order, emit one `Unit` per line/bullet,
+   each tagged with its section and the role it sits under, each given a stable
+   id. Recurses into table cells (row-major, which matches the visual order of
+   the sidebar layouts CVs use) and nested tables; cell-sourced units carry
+   `in_table=True`.
 2. `prompt.py` — a system prompt that defines what counts as a finding and the
    no-invention rule; the CV goes in as `[id] text` lines grouped by section.
 3. `analyze.py` — `client.messages.parse(..., output_format=Analysis)`, then
@@ -85,8 +86,10 @@ delete after — see the pre-launch legal note), then log a row per CV.
 
 ## Known gaps
 
-- **Tables aren't read.** `--dry-run` reports how many table paragraphs were
-  skipped. Needs handling before real CVs are trustworthy.
+- **Bold pseudo-headings.** A sidebar that uses a bold line ("Skills", "Contact")
+  instead of a real Heading style is not recognised as a section break — its
+  content lands under whatever section preceded it. Only styled headings
+  (`Heading 1`…) start a new section.
 - **Strict-schema optionals.** `Finding.item` is nullable; if the API's strict
   json-schema mode rejects it, make it a plain `str` (empty when absent).
 - `rewrite` is plain text. When the target bullet has a bold lead-in, step 1's

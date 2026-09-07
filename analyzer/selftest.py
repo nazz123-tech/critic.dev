@@ -13,11 +13,11 @@ from .schema import Analysis, Finding, NeedFromUser, Severity
 def main(path: str) -> int:
     ex = extract(path)
     ids = [u.id for u in ex.units]
-    assert ids == sorted(set(ids), key=ids.index), "unit ids are not unique"
-    assert all(".bullet1" in i or ".bullet" not in i for i in ids
-               if i.endswith("bullet1") or "bullet" not in i) or True  # informational
+    assert len(ids) == len(set(ids)), "unit ids are not unique"
     first_bullets = [i for i in ids if i.endswith(".bullet1")]
     assert first_bullets, f"expected bullet numbering to start at 1, got {ids}"
+    assert ex.tables > 0, "sample CV has a table; extractor reported none"
+    assert any(u.in_table for u in ex.units), "expected some units to come from table cells"
 
     src = {u.id: u.text for u in ex.units}
     a_bullet = next(u for u in ex.units if u.kind == "bullet")

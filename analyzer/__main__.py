@@ -30,13 +30,12 @@ def _dry_run(path: str) -> int:
     print("=== SYSTEM ===\n" + SYSTEM)
     print("=== USER ===\n" + msg)
     print("=== EXTRACTION ===")
+    in_table = sum(1 for u in ex.units if u.in_table)
     print(f"{len(ex.units)} units, {len(units)} reviewable, "
-          f"{ex.skipped_tables} paragraph(s) inside tables not looked at")
+          f"{ex.tables} table(s) walked ({in_table} unit(s) from cells)")
     for u in ex.units:
-        flag = " " if u in units else "-"
+        flag = "-" if u not in units else ("T" if u.in_table else " ")
         print(f"  {flag} {u.id:<34} {u.kind:<7} {u.text[:70]}")
-    if ex.skipped_tables:
-        print("\nNOTE: table content is not reviewed yet — a known gap for real-world CVs.")
     return 0
 
 
