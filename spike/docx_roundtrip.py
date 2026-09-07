@@ -150,8 +150,15 @@ def main():
         print(f"  pdfs     : {p1}  |  {p2}")
 
     failed = [k for k, _, _, ok in checks if not ok]
-    print("\n  VERDICT  " + ("styling survived — option B is buildable"
-                             if not failed else f"styling changed: {', '.join(failed)}"))
+    if failed:
+        verdict = f"styling changed: {', '.join(failed)}"
+    elif mixed:
+        verdict = ("the paragraph's own style survived, but its internal formatting was "
+                   "flattened to one look — fine for a plain bullet, not for one with a "
+                   "bold lead-in")
+    else:
+        verdict = "styling survived — option B is buildable"
+    print("\n  VERDICT  " + verdict)
     print("  Automated checks cannot see layout. Open both PDFs before you trust this.\n")
 
 
