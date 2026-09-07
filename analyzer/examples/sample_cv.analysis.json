@@ -1,0 +1,79 @@
+{
+  "summary": "Almost every Experience bullet names a duty instead of a result and leans on weak verbs (\"Responsible for\", \"Worked with\", \"Helped\"), so the CV shows what Nazar was assigned rather than what changed because of him.",
+  "findings": [
+    {
+      "anchor_id": "experience.item1.bullet1",
+      "section": "Experience",
+      "item": "Backend Developer (part-time), Kvikk AS   Jun 2025 – present",
+      "quote": "Responsible for the backend of the ordering system.",
+      "severity": "high",
+      "why": "This states a responsibility, not an outcome. A reader cannot tell whether the backend was reliable, fast, or improved while you owned it.",
+      "rewrite": "Built and maintained the ordering-system backend, which processes {orders_per_day} orders/day.",
+      "needs_from_user": [
+        {
+          "placeholder": "orders_per_day",
+          "question": "Roughly how many orders a day does the ordering system handle?"
+        }
+      ]
+    },
+    {
+      "anchor_id": "experience.item1.bullet2",
+      "section": "Experience",
+      "item": "Backend Developer (part-time), Kvikk AS   Jun 2025 – present",
+      "quote": "Worked with the frontend team on the checkout flow.",
+      "severity": "medium",
+      "why": "\"Worked with\" hides your contribution; the reader cannot tell what you built or decided on the checkout flow.",
+      "rewrite": "Built the checkout flow's backend with the frontend team, cutting {checkout_metric} by {improvement}.",
+      "needs_from_user": [
+        {
+          "placeholder": "checkout_metric",
+          "question": "Which checkout metric did the work improve — errors, abandonment, or latency?"
+        },
+        {
+          "placeholder": "improvement",
+          "question": "By how much did that metric change (percentage or absolute)?"
+        }
+      ]
+    },
+    {
+      "anchor_id": "experience.item1.bullet3",
+      "section": "Experience",
+      "item": "Backend Developer (part-time), Kvikk AS   Jun 2025 – present",
+      "quote": "Helped maintain the deployment pipeline.",
+      "severity": "medium",
+      "why": "\"Helped maintain\" is the weakest possible framing — it places you next to the work, not in charge of it, and names no effect.",
+      "rewrite": "Maintained the deployment pipeline, reducing failed deploys by {failed_deploy_reduction}.",
+      "needs_from_user": [
+        {
+          "placeholder": "failed_deploy_reduction",
+          "question": "Did your pipeline work cut failed or slow deploys, and by roughly how much?"
+        }
+      ]
+    },
+    {
+      "anchor_id": "experience.item2.bullet2",
+      "section": "Experience",
+      "item": "Teaching Assistant, NTNU   Aug 2024 – May 2025",
+      "quote": "Graded assignments and gave written feedback.",
+      "severity": "low",
+      "why": "This is a routine TA duty with no scale. As written it adds little beyond the job title.",
+      "rewrite": "Marked {assignments_count} assignments a week and wrote individual feedback for each student.",
+      "needs_from_user": [
+        {
+          "placeholder": "assignments_count",
+          "question": "Roughly how many assignments did you grade per week?"
+        }
+      ]
+    },
+    {
+      "anchor_id": "experience.item1",
+      "section": "Experience",
+      "item": null,
+      "quote": "Kvikk AS   Jun 2025",
+      "severity": "low",
+      "why": "The gap between employer and dates is three literal spaces rather than a tab or alignment, so it will render unevenly and reads as sloppy next to the other role.",
+      "rewrite": "Kvikk AS — Jun 2025",
+      "needs_from_user": []
+    }
+  ]
+}

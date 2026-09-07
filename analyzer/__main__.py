@@ -1,17 +1,19 @@
-"""python -m analyzer <cv.docx> [--model ID] [--dry-run] [--json]
+"""python -m analyzer <cv.docx> [--model ID] [--dry-run] [--json] [--check FILE]
 
---dry-run prints exactly what would be sent to the model and makes no API call,
-so the prompt and the extraction can be checked without spending anything or
-needing a key.
+--dry-run  print exactly what would be sent to the model; no API call, no key.
+--check    read an Analysis as JSON (FILE, or - for stdin), validate it against
+           the CV, and print the report. Lets findings produced any way — by a
+           real call, or by hand while iterating on the prompt — go through the
+           same validator and formatter for free.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 
 from .extract import extract, reviewable
 from .prompt import SYSTEM, build_user_message
+from .schema import Analysis
 
 # Opus 5 list price, for a rough running cost only.
 PRICE_IN_PER_MTOK = 5.0
@@ -56,7 +58,7 @@ def _print_report(result) -> None:
         print()
 
     if result.problems:
-        print(f"VALIDATION — {len(result.problems)} problem(s) the model's output did not satisfy:")
+        print(f"VALIDATION — {len(result.problems)} problem(s) the output did not satisfy:")
         for p in result.problems:
             where = "analysis" if p.finding_index < 0 else f"finding #{p.finding_index}"
             print(f"    {where}: [{p.kind}] {p.detail}")
@@ -72,16 +74,30 @@ def _print_report(result) -> None:
               f"out={getattr(u, 'output_tokens', '?')}  ~${cost:.3f}")
 
 
+def _check(cv_path: str, src: str) -> int:
+    from .analyze import Result, validate
+
+    raw = sys.stdin.read() if src == "-" else open(src, encoding="utf-8").read()
+    analysis = Analysis.model_validate_json(raw)
+    ex = extract(cv_path)
+    problems = validate(analysis, ex)
+    _print_report(Result(analysis=analysis, problems=problems, extraction=ex, usage=None, model="(offline --check)"))
+    return 1 if problems else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m analyzer")
     ap.add_argument("cv", help="path to a CV .docx")
     ap.add_argument("--model", default=None, help="override the model id")
     ap.add_argument("--dry-run", action="store_true", help="print the prompt and extraction, make no API call")
     ap.add_argument("--json", action="store_true", help="print the raw Analysis as JSON")
+    ap.add_argument("--check", metavar="FILE", help="validate + render an Analysis JSON (FILE or -), no API call")
     a = ap.parse_args(argv)
 
     if a.dry_run:
         return _dry_run(a.cv)
+    if a.check:
+        return _check(a.cv, a.check)
 
     try:
         from .analyze import DEFAULT_MODEL, analyze_cv
@@ -93,7 +109,7 @@ def main(argv=None) -> int:
     except Exception as e:  # anthropic raises at client construction when no key is resolvable
         name = type(e).__name__
         if "api_key" in str(e).lower() or name in ("AuthenticationError",):
-            sys.exit("No Anthropic credentials found. Set ANTHROPIC_API_KEY (or use --dry-run).")
+            sys.exit("No Anthropic credentials found. Set ANTHROPIC_API_KEY (or use --dry-run / --check).")
         raise
 
     if a.json:

@@ -25,15 +25,25 @@ a matching question — the app collects the answer before offering the rewrite.
 
 ```bash
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=...           # the real run needs a key
 
+# With a key — the automated run:
+export ANTHROPIC_API_KEY=...
 python -m analyzer path/to/cv.docx                 # review, print findings
 python -m analyzer path/to/cv.docx --json          # raw Analysis as JSON
-python -m analyzer path/to/cv.docx --dry-run       # print the prompt + extraction, no API call
 python -m analyzer path/to/cv.docx --model claude-sonnet-5
 
-python -m analyzer.selftest spike/out/sample_cv.docx   # offline: extraction + validator
+# No key, $0 — iterate on the prompt and schema:
+python -m analyzer path/to/cv.docx --dry-run       # print the exact prompt + extraction
+python -m analyzer path/to/cv.docx --check FILE     # validate + render an Analysis JSON (FILE or -)
+python -m analyzer.selftest spike/out/sample_cv.docx   # extraction + validator
+
+# Worked example (findings written by hand against the sample, then checked):
+python -m analyzer spike/out/sample_cv.docx --check analyzer/examples/sample_cv.analysis.json
 ```
+
+`--check` runs any `Analysis` — from a real call, a hand-written draft, or a
+free model — through the same validator and formatter. Useful for tuning the
+prompt before spending anything, and as a fixture for step 3's UI.
 
 Default model is `claude-opus-5` (quality gate — worth it). Production cost
 tuning is a later step, not this one.
