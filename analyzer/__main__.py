@@ -1,10 +1,13 @@
-"""python -m analyzer <cv.docx> [--model ID] [--dry-run] [--json] [--check FILE]
+"""python -m analyzer <cv.docx> [--dry-run] [--json] [--check FILE] [--apply FILE]
 
 --dry-run  print exactly what would be sent to the model; no API call, no key.
 --check    read an Analysis as JSON (FILE, or - for stdin), validate it against
            the CV, and print the report. Lets findings produced any way — by a
            real call, or by hand while iterating on the prompt — go through the
            same validator and formatter for free.
+--apply    apply an Analysis JSON's rewrites to the CV and write a new .docx.
+           --fill K=V (repeatable) supplies values for {placeholder} tokens;
+           --only I,J restricts to those finding indices; --out sets the path.
 """
 from __future__ import annotations
 
@@ -43,9 +46,11 @@ def _print_report(result) -> None:
     a = result.analysis
     print(f"\nSUMMARY  {a.summary}\n")
 
+    orig_index = {id(f): i for i, f in enumerate(a.findings)}
     findings = sorted(a.findings, key=lambda f: (SEV_ORDER.get(f.severity.value, 9), f.anchor_id))
     for f in findings:
-        head = f"{SEV_MARK.get(f.severity.value, '  ')}[{f.severity.value.upper()}] {f.anchor_id}"
+        head = (f"{SEV_MARK.get(f.severity.value, '  ')}#{orig_index[id(f)]} "
+                f"[{f.severity.value.upper()}] {f.anchor_id}")
         if f.item:
             head += f"  ({f.item})"
         print(head)
@@ -84,6 +89,38 @@ def _check(cv_path: str, src: str) -> int:
     return 1 if problems else 0
 
 
+def _apply(cv_path: str, src: str, out: str | None, fills: list[str], only: str | None) -> int:
+    from .apply import apply_findings
+
+    fill_map: dict[str, str] = {}
+    for pair in fills:
+        if "=" not in pair:
+            sys.exit(f"--fill expects K=V, got {pair!r}")
+        k, v = pair.split("=", 1)
+        fill_map[k.strip()] = v
+    only_idx = [int(x) for x in only.split(",")] if only else None
+
+    raw = sys.stdin.read() if src == "-" else open(src, encoding="utf-8").read()
+    analysis = Analysis.model_validate_json(raw)
+    report = apply_findings(cv_path, analysis, out_path=out, fills=fill_map, only=only_idx)
+
+    for a in report.applied:
+        note = "  (bold lead-in flattened — needs a segmented rewrite)" if a.flattened_bold else ""
+        print(f"APPLIED  {a.anchor_id} [{a.how}]{note}")
+        print(f"    - {a.old}")
+        print(f"    + {a.new}")
+    for s in report.skipped:
+        print(f"SKIPPED  {s.anchor_id}: {s.reason}")
+
+    print(f"\nwrote {report.out_path}")
+    if report.pages_before is not None:
+        arrow = f"{report.pages_before} -> {report.pages_after}"
+        print(f"pages    {arrow}" + ("   ⚠ grew — the CV gained a page" if report.grew else ""))
+    else:
+        print("pages    not checked (LibreOffice not installed)")
+    return 0 if report.applied else 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m analyzer")
     ap.add_argument("cv", help="path to a CV .docx")
@@ -91,12 +128,18 @@ def main(argv=None) -> int:
     ap.add_argument("--dry-run", action="store_true", help="print the prompt and extraction, make no API call")
     ap.add_argument("--json", action="store_true", help="print the raw Analysis as JSON")
     ap.add_argument("--check", metavar="FILE", help="validate + render an Analysis JSON (FILE or -), no API call")
+    ap.add_argument("--apply", metavar="FILE", help="apply an Analysis JSON's rewrites to the CV, write a new .docx")
+    ap.add_argument("--out", metavar="PATH", help="output path for --apply")
+    ap.add_argument("--fill", action="append", metavar="K=V", default=[], help="value for a {placeholder}; repeatable")
+    ap.add_argument("--only", metavar="I,J", help="with --apply, restrict to these finding indices")
     a = ap.parse_args(argv)
 
     if a.dry_run:
         return _dry_run(a.cv)
     if a.check:
         return _check(a.cv, a.check)
+    if a.apply:
+        return _apply(a.cv, a.apply, a.out, a.fill, a.only)
 
     try:
         from .analyze import DEFAULT_MODEL, analyze_cv

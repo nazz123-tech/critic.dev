@@ -1,11 +1,15 @@
-"""Offline checks for the parts that don't need the API: extraction and the
-validator. Run: python -m analyzer.selftest spike/out/sample_cv.docx
+"""Offline checks for the parts that don't need the API: extraction, the
+validator, and the apply layer.
+Run: python -m analyzer.selftest spike/out/sample_cv.docx
 """
 from __future__ import annotations
 
+import os
 import sys
+import tempfile
 
 from .analyze import validate
+from .apply import apply_findings
 from .extract import extract
 from .schema import Analysis, Finding, NeedFromUser, Severity
 
@@ -48,8 +52,30 @@ def main(path: str) -> int:
     assert not missing, f"validator missed: {missing} (got {kinds})"
     assert not any(p.finding_index == 0 for p in problems), "the good finding should be clean"
 
+    # apply layer: a fillable whole-bullet rewrite lands; an unfilled one is skipped
+    whole = Finding(
+        anchor_id=a_bullet.id, section=a_bullet.section, item=a_bullet.item,
+        quote=a_bullet.text, severity=Severity.high, why="w",
+        rewrite="Rebuilt the thing, handling {n} requests/day.",
+        needs_from_user=[NeedFromUser(placeholder="n", question="how many?")],
+    )
+    unfilled = Finding(
+        anchor_id=ex.units[-1].id, section=ex.units[-1].section, item=None,
+        quote=ex.units[-1].text, severity=Severity.low, why="w",
+        rewrite="Something with {a_missing_value} in it.",
+        needs_from_user=[NeedFromUser(placeholder="a_missing_value", question="?")],
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        out = os.path.join(tmp, "edited.docx")
+        rep = apply_findings(path, Analysis(summary="s", findings=[whole, unfilled]),
+                             out_path=out, fills={"n": "4,000"}, check_pages=False)
+        assert os.path.exists(out), "apply wrote no file"
+        assert [x.anchor_id for x in rep.applied] == [a_bullet.id], rep.applied
+        assert any("a_missing_value" in s.reason for s in rep.skipped), rep.skipped
+        assert "4,000" in extract(out).para_by_id[a_bullet.id].text, "rewrite not in output"
+
     print(f"selftest OK — {len(ex.units)} units, ids like {ids[:3]}…, "
-          f"validator caught {sorted(kinds)}")
+          f"validator caught {sorted(kinds)}, apply wrote + skipped as expected")
     return 0
 
 

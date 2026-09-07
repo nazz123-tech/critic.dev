@@ -155,11 +155,16 @@ def _walk(blocks, ex: Extraction, st: _State, in_table: bool) -> None:
             _add_paragraph(block, ex, st, in_table)
 
 
-def extract(path: str) -> Extraction:
-    doc = Document(path)
+def extract_doc(doc) -> Extraction:
+    """Extract from an already-open Document. The apply layer needs this so it
+    edits and saves the same paragraph objects the ids point at."""
     ex = Extraction(units=[])
     _walk(_iter_block_items(doc), ex, _State(), in_table=False)
     return ex
+
+
+def extract(path: str) -> Extraction:
+    return extract_doc(Document(path))
 
 
 def reviewable(units: list[Unit]) -> list[Unit]:

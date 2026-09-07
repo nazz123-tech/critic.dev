@@ -39,11 +39,39 @@ python -m analyzer.selftest spike/out/sample_cv.docx   # extraction + validator
 
 # Worked example (findings written by hand against the sample, then checked):
 python -m analyzer spike/out/sample_cv.docx --check analyzer/examples/sample_cv.analysis.json
+
+# Apply the rewrites and write a new .docx:
+python -m analyzer spike/out/sample_cv.docx \
+  --apply analyzer/examples/sample_cv.analysis.json \
+  --fill orders_per_day="4,000" --fill checkout_metric="checkout errors" \
+  --fill improvement="38%" --fill failed_deploy_reduction="around half" \
+  --fill assignments_count="60"
 ```
 
 `--check` runs any `Analysis` — from a real call, a hand-written draft, or a
 free model — through the same validator and formatter. Useful for tuning the
 prompt before spending anything, and as a fixture for step 3's UI.
+
+## Applying findings — `--apply`
+
+`analyzer/apply.py` turns an `Analysis` into an edited `.docx`, reusing the
+spike's in-place technique (`analyzer/docxedit.py`):
+
+- `{placeholder}` tokens in a rewrite are filled from `--fill K=V` (repeatable).
+  A rewrite with an **unfilled** placeholder is skipped and reported — the app's
+  cue to ask the user, never to guess.
+- Whole-line quotes → the paragraph's text is replaced, keeping the dominant
+  run's formatting; style, list numbering and indent survive.
+- Part-of-line quotes → replaced inside the single run that contains them.
+- A quote that **spans several runs** (e.g. a date that starts mid-run) is
+  skipped: `partial replacement not supported yet`.
+- `--only I,J` restricts to those finding indices (shown as `#N` by `--check`);
+  `--out` sets the path (default `edited_<name>.docx` beside the input).
+- If LibreOffice is installed, the report shows the page count before/after and
+  warns when the CV gained a page.
+
+`--check` and `--apply` are the whole loop, no key: extract → findings (by hand
+or model) → validate → apply → re-check the output.
 
 Default model is `claude-opus-5` (quality gate — worth it). Production cost
 tuning is a later step, not this one.
@@ -92,6 +120,9 @@ delete after — see the pre-launch legal note), then log a row per CV.
   (`Heading 1`…) start a new section.
 - **Strict-schema optionals.** `Finding.item` is nullable; if the API's strict
   json-schema mode rejects it, make it a plain `str` (empty when absent).
-- `rewrite` is plain text. When the target bullet has a bold lead-in, step 1's
-  `--segments` path takes over at apply time — the two steps aren't wired
-  together yet.
+- **Cross-run partial quotes.** `--apply` skips a quote that spans multiple runs.
+  Handling it means splicing at run level; `docxedit.set_runs_from_segments` is
+  the hook, but the analyzer would need to emit segmented rewrites.
+- **Bold lead-in flattening.** A whole-line rewrite of a bullet like
+  `**Led** the migration…` flattens it to one look; `--apply` flags this
+  (`bold lead-in flattened`). Same fix as above.
